@@ -7,10 +7,10 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = "akshare_docs"
+BOT_NAME = 'doc_crawler'
+SPIDER_MODULES = ['doc_crawler.spiders']
+NEWSPIDER_MODULE = 'doc_crawler.spiders'
 
-SPIDER_MODULES = ["akshare_docs.spiders"]
-NEWSPIDER_MODULE = "akshare_docs.spiders"
 
 ADDONS = {}
 
@@ -21,7 +21,7 @@ ADDONS = {}
 
 # 启用管道
 ITEM_PIPELINES = {
-   'akshare_docs.pipelines.SaveMarkdownPipeline': 300, # 数值越小优先级越高
+   'doc_crawler.pipelines.SaveMarkdownPipeline': 300, # 数值越小优先级越高
 }
 
 # 遵守 robots.txt 规则（默认 True，建议保持）
