@@ -1,0 +1,10 @@
+[project]
+name = "scrapy-mth"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "html2text>=2025.4.15",
+    "scrapy>=2.14.1",
+]
