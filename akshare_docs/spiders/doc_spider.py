@@ -1,3 +1,4 @@
+# spiders/doc_spider.py (关键部分)
 import scrapy
 import html2text
 from scrapy.linkextractors import LinkExtractor
@@ -5,11 +6,10 @@ from scrapy.spiders import CrawlSpider, Rule
 from urllib.parse import urlparse, urljoin, urldefrag
 import os
 import re
-from posixpath import normpath as posix_normpath
 
 from akshare_docs.items import AkshareDocsItem
 
-# 配置 html2text 转换器
+# 配置 html2text（保持不变）
 converter = html2text.HTML2Text()
 converter.ignore_links = False
 converter.body_width = 0
@@ -22,37 +22,36 @@ class DocSpider(CrawlSpider):
     allowed_domains = ["akshare.akfamily.xyz"]
     start_urls = ["https://akshare.akfamily.xyz/"]
 
+    # 忽略 /_sources/ 路径
     rules = (
-        Rule(LinkExtractor(allow_domains=allowed_domains), callback='parse_item', follow=True),
+        Rule(
+            LinkExtractor(
+                allow_domains=allowed_domains,
+                deny=r'/_sources/'
+            ),
+            callback='parse_item',
+            follow=True
+        ),
     )
 
     def parse_item(self, response):
+        # ...（前面的内容提取、HTML清洗、Markdown转换等保持不变）...
         item = AkshareDocsItem()
         item['url'] = response.url
-
-        # 提取主体内容（根据实际网站结构调整选择器）
         main_content = response.css('main, article, .content, .document, .body').get()
-        if main_content:
-            raw_html = main_content
-        else:
-            raw_html = response.text
-
-        # 清洗 HTML：移除脚本、样式等
+        raw_html = main_content if main_content else response.text
         response.selector.remove_namespaces()
-        cleaned_html = response.selector.xpath('//body').get() or response.text
-
-        # 转换为 Markdown
+        cleaned_html = response.selector.xpath('//body').get() or raw_html
         try:
             markdown_text = converter.handle(cleaned_html)
         except Exception as e:
             self.logger.error(f"转换失败 {response.url}: {e}")
             markdown_text = ""
 
-        # --- 生成当前文件的本地保存路径 ---
         current_file_path = self._url_to_file_path(response.url)
         item['file_path'] = current_file_path
 
-        # --- 转换 Markdown 中的内部链接 ---
+        # ---------- 核心改进：转换所有内部链接，保留 title 和尖括号 ----------
         if markdown_text:
             markdown_text = self._convert_internal_links(
                 markdown_text,
@@ -63,67 +62,74 @@ class DocSpider(CrawlSpider):
         item['markdown_content'] = markdown_text
         yield item
 
+    # ---------- 辅助方法 ----------
     def _url_to_file_path(self, url):
-        """
-        将 URL 转换为相对于输出根目录的本地文件路径（以 posix 风格）。
-        例如：https://akshare.akfamily.xyz/foo/bar.html -> foo/bar.md
-        """
+        """将URL转换为本地文件路径（相对路径，使用正斜杠）"""
         parsed = urlparse(url)
         path = parsed.path
         if path.endswith('/'):
             path = path + 'index.md'
         elif path.endswith('.html'):
-            path = path[:-5] + '.md'  # 替换 .html 为 .md
+            path = path[:-5] + '.md'
         else:
-            # 无扩展名的情况，视为目录（如 /docs/install/）
             if not os.path.splitext(path)[1]:
                 path = os.path.join(path, 'index.md') if path.endswith('/') else path + '.md'
-        # 去除开头的 '/'
-        if path.startswith('/'):
-            path = path[1:]
-        return path
+        return path.lstrip('/')
 
-    def _is_internal_link(self, link_url, base_url):
-        """
-        判断链接是否指向本站点内部。
-        """
-        # 解析绝对链接
-        absolute = urljoin(base_url, link_url)
+    def _is_internal_link(self, url, base_url):
+        """判断链接是否指向本站内部（需传入原始链接和当前页面URL）"""
+        absolute = urljoin(base_url, url)
         parsed = urlparse(absolute)
-        # 检查域名是否在 allowed_domains 中
         return any(parsed.netloc.endswith(domain) for domain in self.allowed_domains)
+
+    def _convert_url(self, url, base_url, current_file_path):
+        """
+        将单个URL转换为本地相对路径（如果是内部链接），否则原样返回。
+        """
+        if not self._is_internal_link(url, base_url):
+            return url  # 外部链接不转换
+        target_abs = urljoin(base_url, url)
+        target_path = self._url_to_file_path(target_abs)
+        rel_path = os.path.relpath(target_path, os.path.dirname(current_file_path)).replace('\\', '/')
+        if rel_path == '.':
+            rel_path = os.path.basename(target_path)
+        return rel_path
 
     def _convert_internal_links(self, markdown_text, current_file_path, base_url):
         """
-        在 Markdown 文本中查找所有链接，将内部链接的指向替换为本地 .md 文件的相对路径。
+        改进版链接转换：捕获整个链接 [text](inner)，提取inner中的url部分并替换，
+        同时保留inner中的其他内容（如title、尖括号等）。
         """
-        # 正则匹配 [text](url) 形式的链接
-        link_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+        # 正则匹配整个Markdown链接，贪婪捕获括号内所有内容（直到最后一个右括号）
+        # 这能确保title也被包含在inner中
+        pattern = r'\[([^\]]*)\]\(([^)]+)\)'  # 注意：如果title内包含右括号，此模式可能出错，但通常不会
 
         def replace_link(match):
-            text, url = match.groups()
-            # 分离片段标识符（#anchor）
-            url_without_frag, frag = urldefrag(url)
-            # 只处理内部链接
-            if not self._is_internal_link(url_without_frag, base_url):
-                return match.group(0)  # 外部链接原样返回
+            text = match.group(1)          # 链接文本
+            inner = match.group(2).strip() # 括号内的全部内容（含可能存在的尖括号、title等）
 
-            # 获取目标页面的本地文件路径
-            target_absolute_url = urljoin(base_url, url_without_frag)
-            target_file_path = self._url_to_file_path(target_absolute_url)
+            # 判断是否为内部链接，需要从inner中提取出url部分
+            if inner.startswith('<'):
+                # 带尖括号的格式：<url> 可能后跟空格和title
+                angle_match = re.match(r'<([^>]+)>', inner)
+                if not angle_match:
+                    return match.group(0)  # 格式异常，原样返回
+                old_url = angle_match.group(1)
+                # 只替换尖括号内的url部分
+                new_url = self._convert_url(old_url, base_url, current_file_path)
+                new_inner = inner.replace(f'<{old_url}>', f'<{new_url}>', 1)
+            else:
+                # 普通格式：url 可能后跟空格和title（url内不含空格）
+                parts = inner.split(None, 1)  # 分割为url和剩余部分
+                old_url = parts[0]
+                new_url = self._convert_url(old_url, base_url, current_file_path)
+                if len(parts) == 1:
+                    new_inner = new_url
+                else:
+                    new_inner = new_url + ' ' + parts[1]
 
-            # 计算从当前文件到目标文件的相对路径
-            # 注意：os.path.relpath 默认使用系统路径分隔符，这里统一使用 '/' 以兼容 Markdown
-            rel_path = os.path.relpath(target_file_path, os.path.dirname(current_file_path)).replace('\\', '/')
-            # 如果相对路径以 '../' 开头，保持原样；如果为 '.'，则替换为空或直接使用文件名
-            if rel_path == '.':
-                rel_path = os.path.basename(target_file_path)
-
-            # 重新拼接片段标识符
-            if frag:
-                rel_path += '#' + frag
-
-            return f'[{text}]({rel_path})'
+            # 重新组装链接
+            return f'[{text}]({new_inner})'
 
         # 执行替换
-        return re.sub(link_pattern, replace_link, markdown_text)
+        return re.sub(pattern, replace_link, markdown_text)
