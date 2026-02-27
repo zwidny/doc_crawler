@@ -1,6 +1,4 @@
 # spiders/doc_spider.py
-import scrapy
-import html2text
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 from urllib.parse import urlparse, urljoin, urldefrag
@@ -54,22 +52,9 @@ class UniversalDocSpider(CrawlSpider):
         )
         self.output_dir = spider_kwargs.pop("output_dir", "markdown_output")
 
-        # 转换器配置（可通过参数自定义，此处保留默认）
-        self.converter = html2text.HTML2Text()
-        self.converter.ignore_links = False
-        self.converter.body_width = 0
-        self.converter.protect_links = True
-        self.converter.mark_code = True
-        self.converter.ignore_images = False
-
-        # 必须调用父类初始化
-        print(
-            f"调用 super() 前，self.start_urls: {self.start_urls}, 类型: {type(self.start_urls)}"
-        )
-        super().__init__(*args, **spider_kwargs)
-        print(
-            f"调用 super() 后，self.start_urls: {self.start_urls}, 类型: {type(self.start_urls)}"
-        )
+        # ---------- 转换引擎配置 ----------
+        self.converter_engine = kwargs.get('converter_engine', 'markitdown').lower()
+        self._init_converter()   # 根据引擎初始化转换器
 
         # 如果 allowed_domains 未提供，则从 start_urls 中解析域名作为默认
         if not self.allowed_domains and self.start_urls:
@@ -95,10 +80,38 @@ class UniversalDocSpider(CrawlSpider):
                 follow=True,
             ),
         )
+        super().__init__(*args, **spider_kwargs)
         # 编译规则以确保 CrawlSpider 正确使用它们
         if hasattr(self, "_compile_rules"):
             self._compile_rules()
         print(">>> 初始化完成，self.start_urls =", self.start_urls)
+
+    def _init_converter(self):
+        """根据 converter_engine 初始化转换器及转换函数"""
+        if self.converter_engine == 'markitdown':
+            try:
+                from markitdown import MarkItDown
+                import io
+                self.converter = MarkItDown(enable_plugins=True)
+                # markitdown 的 convert 方法可以直接处理 HTML 字符串
+                self.convert_func = lambda html: self.converter.convert_stream(io.BytesIO(html.encode('utf-8'))).text_content
+            except ImportError:
+                raise ImportError("markitdown 未安装，请运行: pip install markitdown")
+        elif self.converter_engine == 'html2text':
+            try:
+                import html2text
+                self.converter = html2text.HTML2Text()
+                # 设置常用选项（可在此处根据用户需求扩展）
+                self.converter.ignore_links = False
+                self.converter.body_width = 0
+                self.converter.protect_links = True
+                self.converter.mark_code = True
+                self.converter.ignore_images = False
+                self.convert_func = self.converter.handle
+            except ImportError:
+                raise ImportError("html2text 未安装，请运行: pip install html2text")
+        else:
+            raise ValueError(f"不支持的转换引擎: {self.converter_engine}，可选: markitdown, html2text")
 
     def parse_item(self, response):
         self.logger.info(f"Parsing item from {response.url}")
@@ -115,7 +128,8 @@ class UniversalDocSpider(CrawlSpider):
 
         # 转换为 Markdown
         try:
-            markdown_text = self.converter.handle(cleaned_html)
+            markdown_text = self.convert_func(cleaned_html)
+
         except Exception as e:
             self.logger.error(f"转换失败 {response.url}: {e}")
             markdown_text = ""
