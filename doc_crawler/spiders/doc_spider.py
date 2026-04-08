@@ -96,18 +96,22 @@ class UniversalDocSpider(CrawlSpider):
         # 构建 deny 正则表达式（支持多个模式，用 | 连接）
         deny_re = "|".join(self.deny_patterns) if self.deny_patterns else None
 
-        self.rules = (
-            Rule(
-                LinkExtractor(
-                    allow_domains=self.allowed_domains,
-                    # allow=self.allow_re if self.allow_re else (),
-                    deny=deny_re if deny_re else (),
+        # 根据 single_page 参数决定是否启用链接跟踪
+        if self.single_page:
+            self.rules = ()
+        else:
+            self.rules = (
+                Rule(
+                    LinkExtractor(
+                        allow_domains=self.allowed_domains,
+                        # allow=self.allow_re if self.allow_re else (),
+                        deny=deny_re if deny_re else (),
+                    ),
+                    callback="parse_item",
+                    follow=True,
+                    process_links="filter_links_by_path",  # 新增：在处理链接时调用自定义过滤函数
                 ),
-                callback="parse_item",
-                follow=True,
-                process_links="filter_links_by_path",  # 新增：在处理链接时调用自定义过滤函数
-            ),
-        )
+            )
         super().__init__(*args, **spider_kwargs)
         # 编译规则以确保 CrawlSpider 正确使用它们
         if hasattr(self, "_compile_rules"):
@@ -154,7 +158,7 @@ class UniversalDocSpider(CrawlSpider):
                 # 定义转换函数：明确指定流信息为 HTML
                 def convert_with_streaminfo(html):
                     # 将字符串编码为字节流
-                    byte_stream = io.BytesIO(html.encode('utf-8'))
+                    byte_stream = io.BytesIO(html.encode("utf-8"))
                     # 创建 StreamInfo 对象，设置 mime_type 为 'text/html'
                     # 注意：StreamInfo 的构造函数可能因版本而异，常见用法是直接传入字典或使用 kwargs
                     # 这里采用一种兼容的方式，将信息作为关键字参数传递
@@ -162,10 +166,10 @@ class UniversalDocSpider(CrawlSpider):
                     # 如果上述方式不行，可以尝试：stream_info = {'mime_type': 'text/html'}
                     try:
                         # 尝试使用 StreamInfo 类（如果库支持）
-                        stream_info = StreamInfo(mimetype='text/html')
+                        stream_info = StreamInfo(mimetype="text/html")
                     except ImportError:
                         # 降级方案：直接使用字典（某些旧版本支持）
-                        stream_info = {'mimetype': 'text/html'}
+                        stream_info = {"mimetype": "text/html"}
 
                     result = self.converter.convert_stream(
                         byte_stream, stream_info=stream_info
