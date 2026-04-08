@@ -11,6 +11,7 @@
 - `single_page`: 单页面模式 (默认: "false", 设置为 "true" 以抓取单个页面不跟随链接)
 
 ## 基本用法示例
+
 ```bash
 # 爬取 AKShare 文档（相当于之前的特定配置）
 uv run scrapy crawl doc_crawler \
@@ -20,8 +21,10 @@ uv run scrapy crawl doc_crawler \
   -a body_selector="main, article, .content, .document, .body" \
   -a output_dir="_docs/akshare_markdown"
    --loglevel=INFO
+```
 
 # 单页面抓取示例
+
 ```bash
 # 单页面抓取（不跟随链接）
 uv run scrapy crawl doc_crawler \
