@@ -44,6 +44,9 @@ class UniversalDocSpider(CrawlSpider):
         # 弹出 allow_paths 和 converter_engine 以避免传递给父类
         allow_paths_raw = spider_kwargs.pop("allow_paths", "")
         converter_engine = spider_kwargs.pop("converter_engine", "markitdown")
+        # 添加 single_page 参数处理
+        single_page = spider_kwargs.pop("single_page", "false")
+        self.single_page = single_page.lower() in ("true", "1", "yes")
 
         # ---------- 新增：路径白名单 ----------
         # allow_paths: 逗号分隔的路径前缀，如 "/docs/zh-cn/, /help/"
@@ -110,6 +113,8 @@ class UniversalDocSpider(CrawlSpider):
         if hasattr(self, "_compile_rules"):
             self._compile_rules()
         print(">>> 初始化完成，self.start_urls =", self.start_urls)
+        if self.single_page:
+            print(">>> 单页面模式已启用，将不跟随任何链接")
 
     # 新增一个方法，用于在生成请求前过滤链接
     def filter_links_by_path(self, links):
@@ -144,11 +149,12 @@ class UniversalDocSpider(CrawlSpider):
                 import io
 
                 self.converter = MarkItDown(enable_plugins=True)
+
                 # markitdown 的 convert 方法可以直接处理 HTML 字符串
                 # 定义转换函数：明确指定流信息为 HTML
                 def convert_with_streaminfo(html):
                     # 将字符串编码为字节流
-                    byte_stream = io.BytesIO(html.encode('utf-8'))
+                    byte_stream = io.BytesIO(html.encode("utf-8"))
                     # 创建 StreamInfo 对象，设置 mime_type 为 'text/html'
                     # 注意：StreamInfo 的构造函数可能因版本而异，常见用法是直接传入字典或使用 kwargs
                     # 这里采用一种兼容的方式，将信息作为关键字参数传递
@@ -156,16 +162,16 @@ class UniversalDocSpider(CrawlSpider):
                     # 如果上述方式不行，可以尝试：stream_info = {'mime_type': 'text/html'}
                     try:
                         # 尝试使用 StreamInfo 类（如果库支持）
-                        stream_info = StreamInfo(mimetype='text/html')
+                        stream_info = StreamInfo(mimetype="text/html")
                     except ImportError:
                         # 降级方案：直接使用字典（某些旧版本支持）
-                        stream_info = {'mimetype': 'text/html'}
-                    
+                        stream_info = {"mimetype": "text/html"}
+
                     result = self.converter.convert_stream(
-                        byte_stream, 
-                        stream_info=stream_info
+                        byte_stream, stream_info=stream_info
                     )
                     return result.text_content
+
                 self.convert_func = convert_with_streaminfo
             except ImportError:
                 raise ImportError("markitdown 未安装，请运行: pip install markitdown")
