@@ -26,6 +26,13 @@ class UniversalDocSpider(CrawlSpider):
         self.start_urls = [
             url.strip() for url in start_urls_raw.split(",") if url.strip()
         ]
+        # 添加 single_page 参数处理
+        single_page = spider_kwargs.pop("single_page", "false")
+        self.single_page = single_page.lower() in ("true", "1", "yes")
+        # 单页面模式下，如果提供了多个 URL，仅使用第一个
+        if self.single_page and len(self.start_urls) > 1:
+            print(f"单页面模式下，仅处理第一个 URL: {self.start_urls[0]}")
+            self.start_urls = self.start_urls[:1]
         # 处理 allowed_domains：分割并过滤空字符串
         allowed_domains_raw = spider_kwargs.pop("allowed_domains", "")
         self.allowed_domains = [
@@ -44,9 +51,6 @@ class UniversalDocSpider(CrawlSpider):
         # 弹出 allow_paths 和 converter_engine 以避免传递给父类
         allow_paths_raw = spider_kwargs.pop("allow_paths", "")
         converter_engine = spider_kwargs.pop("converter_engine", "markitdown")
-        # 添加 single_page 参数处理
-        single_page = spider_kwargs.pop("single_page", "false")
-        self.single_page = single_page.lower() in ("true", "1", "yes")
 
         # ---------- 新增：路径白名单 ----------
         # allow_paths: 逗号分隔的路径前缀，如 "/docs/zh-cn/, /help/"
