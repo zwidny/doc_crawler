@@ -154,7 +154,7 @@ class UniversalDocSpider(CrawlSpider):
                 # 定义转换函数：明确指定流信息为 HTML
                 def convert_with_streaminfo(html):
                     # 将字符串编码为字节流
-                    byte_stream = io.BytesIO(html.encode("utf-8"))
+                    byte_stream = io.BytesIO(html.encode('utf-8'))
                     # 创建 StreamInfo 对象，设置 mime_type 为 'text/html'
                     # 注意：StreamInfo 的构造函数可能因版本而异，常见用法是直接传入字典或使用 kwargs
                     # 这里采用一种兼容的方式，将信息作为关键字参数传递
@@ -162,10 +162,10 @@ class UniversalDocSpider(CrawlSpider):
                     # 如果上述方式不行，可以尝试：stream_info = {'mime_type': 'text/html'}
                     try:
                         # 尝试使用 StreamInfo 类（如果库支持）
-                        stream_info = StreamInfo(mimetype="text/html")
+                        stream_info = StreamInfo(mimetype='text/html')
                     except ImportError:
                         # 降级方案：直接使用字典（某些旧版本支持）
-                        stream_info = {"mimetype": "text/html"}
+                        stream_info = {'mimetype': 'text/html'}
 
                     result = self.converter.convert_stream(
                         byte_stream, stream_info=stream_info
