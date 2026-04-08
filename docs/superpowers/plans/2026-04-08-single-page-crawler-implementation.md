@@ -174,8 +174,6 @@ if self.single_page and len(self.start_urls) > 1:
 
 - [ ] **Step 2: 注意 logger 的使用时机**
 
-由于此时蜘蛛尚未完全初始化，logger 可能不可用。更改为使用 print:
-
 ```python
 if self.single_page and len(self.start_urls) > 1:
     print(f"单页面模式下，仅处理第一个 URL: {self.start_urls[0]}")
