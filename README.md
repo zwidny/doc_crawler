@@ -8,6 +8,7 @@
 - `output_dir`: 输出目录（默认："markdown_output"）
 - `converter_engine`: 转换引擎（默认："markitdown"，可选："html2text"）
 - `download_files`: 是否下载非HTML文件（默认："false"，设置为"true"以下载.stl, .pdf等文件）
+- `single_page`: 单页面模式 (默认: "false", 设置为 "true" 以抓取单个页面不跟随链接)
 
 ## 基本用法示例
 ```bash
@@ -18,7 +19,24 @@ uv run scrapy crawl doc_crawler \
   -a deny_patterns="/_sources/" \
   -a body_selector="main, article, .content, .document, .body" \
   -a output_dir="_docs/akshare_markdown"
-  --loglevel=INFO
+   --loglevel=INFO
+
+# 单页面抓取示例
+```bash
+# 单页面抓取（不跟随链接）
+uv run scrapy crawl doc_crawler \
+  -a start_urls="https://example.com/doc.html" \
+  -a single_page="true" \
+  -a output_dir="single_page_output"
+
+# 单页面抓取，指定转换引擎和内容选择器
+uv run scrapy crawl doc_crawler \
+  -a start_urls="https://akshare.akfamily.xyz/data/akshare/akshare.html" \
+  -a single_page="true" \
+  -a body_selector="main, article" \
+  -a converter_engine="html2text" \
+  -a output_dir="single_page_output"
+```
 
 # 爬取 AKShare 文档 - 使用html2text引擎
 uv run scrapy crawl doc_crawler \
