@@ -28,8 +28,9 @@ uv run scrapy crawl doc_crawler \
 ```bash
 # 单页面抓取（不跟随链接）
 uv run scrapy crawl doc_crawler \
-  -a start_urls="https://example.com/doc.html" \
+  -a start_urls="https://build123d.readthedocs.io/en/stable/examples_1.html" \
   -a single_page="true" \
+  -a body_selector=".wy-nav-content" \
   -a output_dir="single_page_output"
 
 # 单页面抓取，指定转换引擎和内容选择器

@@ -7,21 +7,22 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = 'doc_crawler'
-SPIDER_MODULES = ['doc_crawler.spiders']
-NEWSPIDER_MODULE = 'doc_crawler.spiders'
+BOT_NAME = "doc_crawler"
+SPIDER_MODULES = ["doc_crawler.spiders"]
+NEWSPIDER_MODULE = "doc_crawler.spiders"
 
 
 ADDONS = {}
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = "akshare_docs (+http://www.yourdomain.com)"
+# USER_AGENT = "akshare_docs (+http://www.yourdomain.com)"
 
 
 # 启用管道
 ITEM_PIPELINES = {
-   'doc_crawler.pipelines.SaveMarkdownPipeline': 300, # 数值越小优先级越高
+    "doc_crawler.pipelines.MediaDownloadPipeline": 200,  # 先下载媒体文件
+    "doc_crawler.pipelines.SaveMarkdownPipeline": 300,  # 再保存Markdown文件
 }
 
 # 遵守 robots.txt 规则（默认 True，建议保持）
@@ -39,15 +40,15 @@ COOKIES_ENABLED = True
 
 # 设置默认的请求头，模拟浏览器
 DEFAULT_REQUEST_HEADERS = {
-   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-   'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
 }
 
 
 DOWNLOADER_MIDDLEWARES = {
-    'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
-    'doc_crawler.middlewares.RandomUserAgentMiddleware': 400,
+    "scrapy.downloadermiddlewares.useragent.UserAgentMiddleware": None,
+    "doc_crawler.middlewares.RandomUserAgentMiddleware": 400,
 }
 
 

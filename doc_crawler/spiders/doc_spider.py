@@ -1,4 +1,5 @@
 # spiders/doc_spider.py
+import scrapy
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 from urllib.parse import urlparse, urljoin, urldefrag
@@ -47,6 +48,7 @@ class UniversalDocSpider(CrawlSpider):
         self.body_selector = spider_kwargs.pop(
             "body_selector", "main, article, .content, .document, .body, body"
         )
+        print(f"body_selector 设置为: {self.body_selector}")
         self.output_dir = spider_kwargs.pop("output_dir", "markdown_output")
         # 弹出 allow_paths 和 converter_engine 以避免传递给父类
         allow_paths_raw = spider_kwargs.pop("allow_paths", "")
@@ -194,6 +196,10 @@ class UniversalDocSpider(CrawlSpider):
                 self.converter.protect_links = True
                 self.converter.mark_code = True
                 self.converter.ignore_images = False
+                # 防止将图片src作为alt文本
+                self.converter.images_to_alt = False
+                # 保留图片的width/height属性
+                self.converter.images_with_size = True
                 self.convert_func = self.converter.handle
             except ImportError:
                 raise ImportError("html2text 未安装，请运行: pip install html2text")
@@ -201,6 +207,15 @@ class UniversalDocSpider(CrawlSpider):
             raise ValueError(
                 f"不支持的转换引擎: {self.converter_engine}，可选: markitdown, html2text"
             )
+
+    def start_requests(self):
+        if self.single_page:
+            # 单页面模式下，为每个起始URL创建请求，直接调用parse_item
+            for url in self.start_urls:
+                yield scrapy.Request(url, callback=self.parse_item)
+        else:
+            # 普通模式下，使用父类的默认行为
+            yield from super().start_requests()
 
     def parse_item(self, response):
         # 检查 URL 路径是否被允许
@@ -211,13 +226,26 @@ class UniversalDocSpider(CrawlSpider):
         item = DocCrawlerItem()
         item["url"] = response.url
 
+        # 提取媒体文件链接（图片、STL等）
+        media_urls = self._extract_media_urls(response)
+        item["media_urls"] = media_urls
+
         # 提取主体内容（使用用户提供的 CSS 选择器）
+        self.logger.debug(f"使用 body_selector: {self.body_selector}")
         main_content = response.css(self.body_selector).get()
+        self.logger.debug(f"main_content 找到: {bool(main_content)}")
         raw_html = main_content if main_content else response.text
+        if not main_content:
+            self.logger.warning(
+                f"body_selector '{self.body_selector}' 未匹配到内容，使用完整页面"
+            )
         self.logger.debug(f"raw_html:\n{raw_html}")
         # 清洗 HTML，只保留 <body> 部分
-        response.selector.remove_namespaces()
-        cleaned_html = response.selector.xpath("//body").get() or raw_html
+        if not main_content:
+            response.selector.remove_namespaces()
+            cleaned_html = response.selector.xpath("//body").get() or raw_html
+        else:
+            cleaned_html = raw_html
 
         # 转换为 Markdown
         try:
@@ -238,9 +266,72 @@ class UniversalDocSpider(CrawlSpider):
             )
 
         item["markdown_content"] = markdown_text
+
         yield item
 
     # ---------- 辅助方法（与之前相同）----------
+    def _extract_media_urls(self, response):
+        """从响应中提取图片和文件链接"""
+        media_extensions = {
+            # 图片格式
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".svg",
+            ".webp",
+            ".bmp",
+            ".ico",
+            ".tiff",
+            # 文档/文件格式
+            ".stl",
+            ".pdf",
+            ".zip",
+            ".gz",
+            ".tar",
+            ".doc",
+            ".docx",
+            ".ppt",
+            ".pptx",
+            ".xls",
+            ".xlsx",
+            ".txt",
+            ".csv",
+            ".json",
+            ".xml",
+        }
+
+        media_urls = set()
+
+        # 提取图片标签
+        for img in response.css("img"):
+            src = img.attrib.get("src")
+            if src:
+                # 跳过 data: URL (base64 嵌入图片)
+                if src.startswith("data:"):
+                    continue
+                absolute_url = urljoin(response.url, src)
+                # 只下载内部链接的媒体文件
+                if self._is_internal_link(absolute_url, response.url):
+                    media_urls.add(absolute_url)
+                else:
+                    self.logger.debug(f"跳过外部媒体链接: {absolute_url}")
+
+        # 提取链接标签中的文件
+        for link in response.css("a"):
+            href = link.attrib.get("href")
+            if href:
+                # 检查是否是媒体文件
+                if any(href.lower().endswith(ext) for ext in media_extensions):
+                    absolute_url = urljoin(response.url, href)
+                    # 只下载内部链接的媒体文件
+                    if self._is_internal_link(absolute_url, response.url):
+                        media_urls.add(absolute_url)
+                    else:
+                        self.logger.debug(f"跳过外部媒体链接: {absolute_url}")
+
+        return list(media_urls)
+
     def _url_to_file_path(self, url):
         parsed = urlparse(url)
         path = parsed.path
@@ -275,11 +366,40 @@ class UniversalDocSpider(CrawlSpider):
         return rel_path
 
     def _convert_internal_links(self, markdown_text, current_file_path, base_url):
-        pattern = r"\[([^\]]*)\]\(([^)]+)\)"
+        # 匹配图片和链接：![alt](url) 或 [text](url)
+        pattern = r"(!?)\[([^\]]*)\]\(([^)]+)\)"
 
         def replace_link(match):
-            text = match.group(1)
-            inner = match.group(2).strip()
+            is_image = match.group(1) == "!"
+            text = match.group(2)
+            inner = match.group(3).strip()
+
+            # 清理图片的alt文本：如果看起来像URL（包含路径分隔符或图片扩展名），则清空
+            if is_image:
+                # 常见的图片扩展名
+                image_extensions = {
+                    ".png",
+                    ".jpg",
+                    ".jpeg",
+                    ".gif",
+                    ".svg",
+                    ".webp",
+                    ".bmp",
+                    ".ico",
+                    ".tiff",
+                }
+                # 如果alt文本看起来像URL（包含'/'或'\'或以图片扩展名结尾），清空它
+                # 这样可以避免清空正常的alt文本如"Logo"或"Diagram"
+                text_lower = text.lower()
+                if (
+                    "/" in text
+                    or "\\" in text
+                    or any(text_lower.endswith(ext) for ext in image_extensions)
+                ):
+                    text = ""
+                    self.logger.debug(
+                        f"清空图片alt文本（看起来像URL）: {match.group(2)}"
+                    )
 
             if inner.startswith("<"):
                 angle_match = re.match(r"<([^>]+)>", inner)
@@ -297,6 +417,8 @@ class UniversalDocSpider(CrawlSpider):
                 else:
                     new_inner = new_url + " " + parts[1]
 
-            return f"[{text}]({new_inner})"
+            # 重新构建链接，保留图片标记
+            prefix = "!" if is_image else ""
+            return f"{prefix}[{text}]({new_inner})"
 
         return re.sub(pattern, replace_link, markdown_text)
