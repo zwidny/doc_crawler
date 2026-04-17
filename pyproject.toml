@@ -1,10 +1,11 @@
 [project]
 name = "scrapy-mth"
 version = "0.1.0"
-description = "Add your description here"
+description = "Universal documentation crawler that converts HTML pages to Markdown with internal link correction"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "build123d>=0.10.0",
     "fake-useragent>=2.2.0",
     "html2text>=2025.4.15",
     "langchain-deepseek>=1.0.1",
@@ -12,3 +13,9 @@ dependencies = [
     "markitdown[docx,pdf,pptx]>=0.1.5",
     "scrapy>=2.14.1",
 ]
+
+[project.scripts]
+doc_crawler = "doc_crawler.cli:main"
+
+[tool.uv]
+scripts = { doc_crawler = "doc_crawler.cli:main" }
