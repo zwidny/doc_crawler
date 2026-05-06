@@ -1,4 +1,4 @@
-# scrapy-mth
+# html-docs-crawler
 
 基于 Scrapy 的通用文档爬虫，将 HTML 文档站转换为 Markdown 格式，并自动修正内部链接为本地 `.md` 相对路径。支持多种转换引擎（markitdown / html2text），路径白名单过滤，媒体文件自动下载。
 

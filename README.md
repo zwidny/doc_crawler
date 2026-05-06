@@ -1,4 +1,4 @@
-# scrapy-mth
+# html-docs-crawler
 
 A Scrapy-based universal documentation crawler that converts HTML documentation sites to Markdown format, with automatic internal link rewriting to local `.md` relative paths. Supports multiple converter engines (markitdown / html2text), path whitelist filtering, and automatic media file download.
 
