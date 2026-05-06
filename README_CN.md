@@ -13,93 +13,73 @@
 - `converter_engine`: 转换引擎（默认："markitdown"，可选："html2text"）
 - `single_page`: 单页面模式 (默认: "false", 设置为 "true" 以抓取单个页面不跟随链接)
 
-## 安装为本地 UV 工具
-
-该项目可以作为本地 `uv` 工具安装，提供更方便的 `doc_crawler` 命令：
+## 安装
 
 ```bash
-# 在项目根目录中安装工具
-uv tool install --editable .
-
-# 验证安装
-doc_crawler --version
+uv tool install git+https://github.com/zwidny/doc_crawler.git
 ```
 
-安装后，你可以直接从任何目录使用 `doc_crawler` 命令。
+安装后可直接在任何目录使用 `doc_crawler` 命令。
 
-## 基本用法示例
+## 使用示例
 
 ```bash
-# 爬取 AKShare 文档（相当于之前的特定配置）
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://akshare.akfamily.xyz" \
-  -a allowed_domains="akshare.akfamily.xyz" \
-  -a deny_patterns="/_sources/" \
-  -a body_selector="main, article, .content, .document, .body" \
-  -a output_dir="_docs/akshare_markdown"
-   --loglevel=INFO
+# 爬取 AKShare 文档
+doc_crawler --start-urls "https://akshare.akfamily.xyz" \
+  --allowed-domains "akshare.akfamily.xyz" \
+  --deny-patterns "/_sources/" \
+  --body-selector "main, article, .content, .document, .body" \
+  --output-dir "_docs/akshare_markdown"
 ```
 
-# 单页面抓取示例
+### 单页面抓取
 
 ```bash
-# 单页面抓取（不跟随链接）
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://build123d.readthedocs.io/en/stable/examples_1.html" \
-  -a single_page="true" \
-  -a body_selector=".wy-nav-content" \
-  -a output_dir="single_page_output"
-
-# 单页面抓取，指定转换引擎和内容选择器
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://akshare.akfamily.xyz/data/akshare/akshare.html" \
-  -a single_page="true" \
-  -a body_selector="main, article" \
-  -a converter_engine="html2text" \
-  -a output_dir="single_page_output"
+doc_crawler --start-urls "https://build123d.readthedocs.io/en/stable/examples_1.html" \
+  --single-page true \
+  --body-selector ".wy-nav-content" \
+  --output-dir "single_page_output"
 ```
 
-# 爬取 AKShare 文档 - 使用html2text引擎
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://akshare.akfamily.xyz/" \
-  -a allowed_domains="akshare.akfamily.xyz" \
-  -a deny_patterns="/_sources/" \
-  -a body_selector="main, article, .content, .document, .body" \
-  -a output_dir="_docs/akshare_markdown_html2text" \
-  -a converter_engine="html2text"
+### 路径白名单过滤
 
+```bash
+doc_crawler --start-urls "https://opencode.ai/docs/zh-cn/" \
+  --allow-paths "/docs/zh-cn/" \
+  --body-selector "main, article, .content" \
+  --output-dir "_docs/opencode_docs_zh_cn"
+```
 
-# 爬取 opencode 文档  只允许 /docs/zh-cn/ 开头的路径
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://opencode.ai/docs/zh-cn/" \
-  -a allow_paths="/docs/zh-cn/" \                  
-  -a body_selector="main, article, .content" \
-  -a output_dir="_docs/opencode_docs_zh_cn"
+### 使用 html2text 引擎
 
+```bash
+doc_crawler --start-urls "https://akshare.akfamily.xyz/" \
+  --allowed-domains "akshare.akfamily.xyz" \
+  --deny-patterns "/_sources/" \
+  --body-selector "main, article, .content, .document, .body" \
+  --converter-engine "html2text" \
+  --output-dir "_docs/akshare_markdown_html2text"
+```
 
-# 爬取 build123d 文档 
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://build123d.readthedocs.io/en/stable/" \
-  -a deny_patterns="/_sources/,/latest/" \
-  -a body_selector=".wy-nav-content" \
-  -a output_dir="_docs/build123d" 
+### 更多示例
 
+```bash
+# 爬取 build123d 文档
+doc_crawler --start-urls "https://build123d.readthedocs.io/en/stable/" \
+  --deny-patterns "/_sources/,/latest/" \
+  --body-selector ".wy-nav-content" \
+  --output-dir "_docs/build123d"
 
+# 爬取 Docusaurus 文档
+doc_crawler --start-urls "https://docusaurus.io/docs" \
+  --allow-paths "/docs" \
+  --body-selector ".col.docItemCol_n6xZ" \
+  --output-dir "_docs/docusaurus"
 
-# 爬取 build123d 文档 
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://docusaurus.io/docs" \
-  -a allow_paths="/docs" \
-  -a body_selector=".col.docItemCol_n6xZ" \
-  -a output_dir="_docs/docusaurus"
-
-
-# 爬取 build123d 文档 
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://docs.astral.sh/uv/" \
-  -a body_selector=".md-content" \
-  -a output_dir="_docs/uv"
-
+# 爬取 uv 文档
+doc_crawler --start-urls "https://docs.astral.sh/uv/" \
+  --body-selector ".md-content" \
+  --output-dir "_docs/uv"
 ```
 
 

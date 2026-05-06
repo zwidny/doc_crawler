@@ -13,16 +13,10 @@ A Scrapy-based universal documentation crawler that converts HTML documentation 
 - `converter_engine`: Converter engine (default: `"markitdown"`, optional: `"html2text"`)
 - `single_page`: Single-page mode (default: `"false"`, set to `"true"` to crawl a single page without following links)
 
-## Install as a Local UV Tool
-
-The project can be installed as a local `uv` tool for convenient `doc_crawler` command access:
+## Install via UV
 
 ```bash
-# Install from project root
-uv tool install --editable .
-
-# Verify installation
-doc_crawler --version
+uv tool install git+https://github.com/zwidny/doc_crawler.git
 ```
 
 After installation, you can use the `doc_crawler` command from any directory.
@@ -31,77 +25,59 @@ After installation, you can use the `doc_crawler` command from any directory.
 
 ```bash
 # Crawl AKShare documentation
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://akshare.akfamily.xyz" \
-  -a allowed_domains="akshare.akfamily.xyz" \
-  -a deny_patterns="/_sources/" \
-  -a body_selector="main, article, .content, .document, .body" \
-  -a output_dir="_docs/akshare_markdown"
-   --loglevel=INFO
+doc_crawler --start-urls "https://akshare.akfamily.xyz" \
+  --allowed-domains "akshare.akfamily.xyz" \
+  --deny-patterns "/_sources/" \
+  --body-selector "main, article, .content, .document, .body" \
+  --output-dir "_docs/akshare_markdown"
 ```
 
 ### Single-page mode
 
 ```bash
-# Single page without following links
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://build123d.readthedocs.io/en/stable/examples_1.html" \
-  -a single_page="true" \
-  -a body_selector=".wy-nav-content" \
-  -a output_dir="single_page_output"
-
-# Single page with a different converter engine and selector
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://akshare.akfamily.xyz/data/akshare/akshare.html" \
-  -a single_page="true" \
-  -a body_selector="main, article" \
-  -a converter_engine="html2text" \
-  -a output_dir="single_page_output"
+doc_crawler --start-urls "https://build123d.readthedocs.io/en/stable/examples_1.html" \
+  --single-page true \
+  --body-selector ".wy-nav-content" \
+  --output-dir "single_page_output"
 ```
 
 ### Path whitelist filtering
 
 ```bash
-# Only follow paths starting with /docs/zh-cn/
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://opencode.ai/docs/zh-cn/" \
-  -a allow_paths="/docs/zh-cn/" \
-  -a body_selector="main, article, .content" \
-  -a output_dir="_docs/opencode_docs_zh_cn"
+doc_crawler --start-urls "https://opencode.ai/docs/zh-cn/" \
+  --allow-paths "/docs/zh-cn/" \
+  --body-selector "main, article, .content" \
+  --output-dir "_docs/opencode_docs_zh_cn"
 ```
 
 ### Crawl with html2text engine
 
 ```bash
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://akshare.akfamily.xyz/" \
-  -a allowed_domains="akshare.akfamily.xyz" \
-  -a deny_patterns="/_sources/" \
-  -a body_selector="main, article, .content, .document, .body" \
-  -a output_dir="_docs/akshare_markdown_html2text" \
-  -a converter_engine="html2text"
+doc_crawler --start-urls "https://akshare.akfamily.xyz/" \
+  --allowed-domains "akshare.akfamily.xyz" \
+  --deny-patterns "/_sources/" \
+  --body-selector "main, article, .content, .document, .body" \
+  --converter-engine "html2text" \
+  --output-dir "_docs/akshare_markdown_html2text"
 ```
 
 ### More examples
 
 ```bash
 # Crawl build123d docs
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://build123d.readthedocs.io/en/stable/" \
-  -a deny_patterns="/_sources/,/latest/" \
-  -a body_selector=".wy-nav-content" \
-  -a output_dir="_docs/build123d"
+doc_crawler --start-urls "https://build123d.readthedocs.io/en/stable/" \
+  --deny-patterns "/_sources/,/latest/" \
+  --body-selector ".wy-nav-content" \
+  --output-dir "_docs/build123d"
 
 # Crawl Docusaurus docs
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://docusaurus.io/docs" \
-  -a allow_paths="/docs" \
-  -a body_selector=".col.docItemCol_n6xZ" \
-  -a output_dir="_docs/docusaurus"
+doc_crawler --start-urls "https://docusaurus.io/docs" \
+  --allow-paths "/docs" \
+  --body-selector ".col.docItemCol_n6xZ" \
+  --output-dir "_docs/docusaurus"
 
 # Crawl uv documentation
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://docs.astral.sh/uv/" \
-  -a body_selector=".md-content" \
-  -a output_dir="_docs/uv"
+doc_crawler --start-urls "https://docs.astral.sh/uv/" \
+  --body-selector ".md-content" \
+  --output-dir "_docs/uv"
 ```
