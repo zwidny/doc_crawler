@@ -14,8 +14,14 @@ dependencies = [
     "scrapy>=2.14.1",
 ]
 
+[build-system]
+requires = ["setuptools>=64.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-data]
+doc_crawler = ["../scrapy.cfg"]
+
 [project.scripts]
 doc_crawler = "doc_crawler.cli:main"
 
-[tool.uv]
-scripts = { doc_crawler = "doc_crawler.cli:main" }
+
