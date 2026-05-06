@@ -1,10 +1,13 @@
 # spiders/doc_spider.py
 import scrapy
+from scrapy.http import HtmlResponse
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 from urllib.parse import urlparse, urljoin, urldefrag
 import os
 import re
+import base64
+import hashlib
 
 from doc_crawler.items import DocCrawlerItem  # 注意：item 类名可能需要调整
 
@@ -226,6 +229,18 @@ class UniversalDocSpider(CrawlSpider):
         item = DocCrawlerItem()
         item["url"] = response.url
 
+        # 检查响应类型：如果不是 HTML 响应，则将其视为媒体文件
+        if not isinstance(response, HtmlResponse):
+            # 将当前 URL 作为媒体文件下载
+            media_urls = [response.url]
+            item["media_urls"] = media_urls
+            # 生成文件路径
+            item["file_path"] = self._url_to_file_path(response.url)
+            # 设置空的内容
+            item["markdown_content"] = ""
+            yield item
+            return
+
         # 提取媒体文件链接（图片、STL等）
         media_urls = self._extract_media_urls(response)
         item["media_urls"] = media_urls
@@ -247,6 +262,13 @@ class UniversalDocSpider(CrawlSpider):
         else:
             cleaned_html = raw_html
 
+        # 生成当前文件的本地保存路径
+        current_file_path = self._url_to_file_path(response.url)
+        item["file_path"] = current_file_path
+
+        # 处理 HTML 中的 base64 图片：保存为本地文件并替换 src
+        cleaned_html = self._save_base64_images(cleaned_html, current_file_path)
+
         # 转换为 Markdown
         try:
             markdown_text = self.convert_func(cleaned_html)
@@ -254,10 +276,6 @@ class UniversalDocSpider(CrawlSpider):
         except Exception as e:
             self.logger.error(f"转换失败 {response.url}: {e}", exc_info=True)
             markdown_text = ""
-
-        # 生成当前文件的本地保存路径
-        current_file_path = self._url_to_file_path(response.url)
-        item["file_path"] = current_file_path
 
         # 转换内部链接
         if markdown_text:
@@ -299,6 +317,7 @@ class UniversalDocSpider(CrawlSpider):
             ".csv",
             ".json",
             ".xml",
+            ".ipynb",
         }
 
         media_urls = set()
@@ -331,6 +350,57 @@ class UniversalDocSpider(CrawlSpider):
                         self.logger.debug(f"跳过外部媒体链接: {absolute_url}")
 
         return list(media_urls)
+
+    def _save_base64_images(self, html_content, current_file_path):
+        """将 HTML 中的 base64 内嵌图片保存为本地文件，并替换 src 为相对路径"""
+        pattern = r'(<img[^>]*?src=)["\'](data:[^"\']+)["\']([^>]*?>)'
+
+        def replace_data_url(match):
+            prefix = match.group(1)
+            data_url = match.group(2)
+            suffix = match.group(3)
+
+            header, _, data = data_url.partition(",")
+            if not data:
+                return match.group(0)
+
+            if ";base64" not in header:
+                return match.group(0)
+
+            # 确定扩展名
+            ext = ".png"
+            if "image/jpeg" in header or "image/jpg" in header:
+                ext = ".jpg"
+            elif "image/png" in header:
+                ext = ".png"
+            elif "image/gif" in header:
+                ext = ".gif"
+            elif "image/svg+xml" in header:
+                ext = ".svg"
+            elif "image/webp" in header:
+                ext = ".webp"
+
+            try:
+                image_data = base64.b64decode(data)
+            except Exception:
+                return match.group(0)
+
+            file_hash = hashlib.md5(image_data).hexdigest()[:8]
+            base_name = os.path.splitext(os.path.basename(current_file_path))[0]
+            image_filename = f"{base_name}_{file_hash}{ext}"
+
+            image_dir = os.path.join(
+                self.output_dir, os.path.dirname(current_file_path)
+            )
+            image_full_path = os.path.join(image_dir, image_filename)
+            os.makedirs(image_dir, exist_ok=True)
+            with open(image_full_path, "wb") as f:
+                f.write(image_data)
+
+            self.logger.info(f"保存 base64 图片: {image_filename}")
+            return f'{prefix}"{image_filename}"{suffix}'
+
+        return re.sub(pattern, replace_data_url, html_content, flags=re.IGNORECASE)
 
     def _url_to_file_path(self, url):
         parsed = urlparse(url)

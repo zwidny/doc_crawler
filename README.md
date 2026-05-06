@@ -1,32 +1,36 @@
-## 参数说明
+# scrapy-mth
 
-- `start_urls`: 起始URL（逗号分隔）
-- `allowed_domains`: 允许的域名（逗号分隔）
-- `deny_patterns`: 拒绝的正则模式（逗号分隔）
-- `allow_paths`: 允许的路径前缀（逗号分隔），只有以此开头的URL会被处理
-- `body_selector`: HTML主体内容CSS选择器（默认："main, article, .content, .document, .body, body"）
-- `output_dir`: 输出目录（默认："~/.config/doc_crawler/_docs/{domain_name}"，其中 {domain_name} 从 start_urls 中提取）
-- `converter_engine`: 转换引擎（默认："markitdown"，可选："html2text"）
-- `single_page`: 单页面模式 (默认: "false", 设置为 "true" 以抓取单个页面不跟随链接)
+A Scrapy-based universal documentation crawler that converts HTML documentation sites to Markdown format, with automatic internal link rewriting to local `.md` relative paths. Supports multiple converter engines (markitdown / html2text), path whitelist filtering, and automatic media file download.
 
-## 安装为本地 UV 工具
+## Parameters
 
-该项目可以作为本地 `uv` 工具安装，提供更方便的 `doc_crawler` 命令：
+- `start_urls`: Starting URLs (comma-separated)
+- `allowed_domains`: Allowed domains (comma-separated)
+- `deny_patterns`: Regex deny patterns (comma-separated)
+- `allow_paths`: Allowed path prefixes (comma-separated); only URLs starting with these prefixes will be processed
+- `body_selector`: CSS selector for main HTML content (default: `"main, article, .content, .document, .body, body"`)
+- `output_dir`: Output directory (default: `"~/.config/doc_crawler/_docs/{domain_name}"`, where `{domain_name}` is extracted from `start_urls`)
+- `converter_engine`: Converter engine (default: `"markitdown"`, optional: `"html2text"`)
+- `single_page`: Single-page mode (default: `"false"`, set to `"true"` to crawl a single page without following links)
+
+## Install as a Local UV Tool
+
+The project can be installed as a local `uv` tool for convenient `doc_crawler` command access:
 
 ```bash
-# 在项目根目录中安装工具
+# Install from project root
 uv tool install --editable .
 
-# 验证安装
+# Verify installation
 doc_crawler --version
 ```
 
-安装后，你可以直接从任何目录使用 `doc_crawler` 命令。
+After installation, you can use the `doc_crawler` command from any directory.
 
-## 基本用法示例
+## Usage Examples
 
 ```bash
-# 爬取 AKShare 文档（相当于之前的特定配置）
+# Crawl AKShare documentation
 uv run scrapy crawl doc_crawler \
   -a start_urls="https://akshare.akfamily.xyz" \
   -a allowed_domains="akshare.akfamily.xyz" \
@@ -36,17 +40,17 @@ uv run scrapy crawl doc_crawler \
    --loglevel=INFO
 ```
 
-# 单页面抓取示例
+### Single-page mode
 
 ```bash
-# 单页面抓取（不跟随链接）
+# Single page without following links
 uv run scrapy crawl doc_crawler \
   -a start_urls="https://build123d.readthedocs.io/en/stable/examples_1.html" \
   -a single_page="true" \
   -a body_selector=".wy-nav-content" \
   -a output_dir="single_page_output"
 
-# 单页面抓取，指定转换引擎和内容选择器
+# Single page with a different converter engine and selector
 uv run scrapy crawl doc_crawler \
   -a start_urls="https://akshare.akfamily.xyz/data/akshare/akshare.html" \
   -a single_page="true" \
@@ -55,7 +59,20 @@ uv run scrapy crawl doc_crawler \
   -a output_dir="single_page_output"
 ```
 
-# 爬取 AKShare 文档 - 使用html2text引擎
+### Path whitelist filtering
+
+```bash
+# Only follow paths starting with /docs/zh-cn/
+uv run scrapy crawl doc_crawler \
+  -a start_urls="https://opencode.ai/docs/zh-cn/" \
+  -a allow_paths="/docs/zh-cn/" \
+  -a body_selector="main, article, .content" \
+  -a output_dir="_docs/opencode_docs_zh_cn"
+```
+
+### Crawl with html2text engine
+
+```bash
 uv run scrapy crawl doc_crawler \
   -a start_urls="https://akshare.akfamily.xyz/" \
   -a allowed_domains="akshare.akfamily.xyz" \
@@ -63,39 +80,28 @@ uv run scrapy crawl doc_crawler \
   -a body_selector="main, article, .content, .document, .body" \
   -a output_dir="_docs/akshare_markdown_html2text" \
   -a converter_engine="html2text"
+```
 
+### More examples
 
-# 爬取 opencode 文档  只允许 /docs/zh-cn/ 开头的路径
-uv run scrapy crawl doc_crawler \
-  -a start_urls="https://opencode.ai/docs/zh-cn/" \
-  -a allow_paths="/docs/zh-cn/" \                  
-  -a body_selector="main, article, .content" \
-  -a output_dir="_docs/opencode_docs_zh_cn"
-
-
-# 爬取 build123d 文档 
+```bash
+# Crawl build123d docs
 uv run scrapy crawl doc_crawler \
   -a start_urls="https://build123d.readthedocs.io/en/stable/" \
   -a deny_patterns="/_sources/,/latest/" \
   -a body_selector=".wy-nav-content" \
-  -a output_dir="_docs/build123d" 
+  -a output_dir="_docs/build123d"
 
-
-
-# 爬取 build123d 文档 
+# Crawl Docusaurus docs
 uv run scrapy crawl doc_crawler \
   -a start_urls="https://docusaurus.io/docs" \
   -a allow_paths="/docs" \
   -a body_selector=".col.docItemCol_n6xZ" \
   -a output_dir="_docs/docusaurus"
 
-
-# 爬取 build123d 文档 
+# Crawl uv documentation
 uv run scrapy crawl doc_crawler \
   -a start_urls="https://docs.astral.sh/uv/" \
   -a body_selector=".md-content" \
   -a output_dir="_docs/uv"
-
 ```
-
-
