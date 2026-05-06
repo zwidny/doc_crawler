@@ -27,7 +27,7 @@ except ImportError:
 
 def get_version():
     try:
-        return version("scrapy-mth")
+        return version("html_docs_crawler")
     except PackageNotFoundError:
         return "unknown"
 

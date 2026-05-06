@@ -16,7 +16,7 @@ A Scrapy-based universal documentation crawler that converts HTML documentation 
 ## Install via UV
 
 ```bash
-uv tool install git+https://github.com/zwidny/doc_crawler.git
+uv tool install html-docs-crawler
 ```
 
 After installation, you can use the `doc_crawler` command from any directory.

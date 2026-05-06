@@ -16,7 +16,7 @@
 ## 安装
 
 ```bash
-uv tool install git+https://github.com/zwidny/doc_crawler.git
+uv tool install html-docs-crawler
 ```
 
 安装后可直接在任何目录使用 `doc_crawler` 命令。
