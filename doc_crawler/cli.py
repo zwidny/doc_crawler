@@ -135,6 +135,8 @@ Examples:
         args.output_dir = get_default_output_dir(args.start_urls)
     # Expand user directory (~)
     args.output_dir = os.path.expanduser(args.output_dir)
+    # Convert to absolute path before chdir
+    args.output_dir = os.path.abspath(args.output_dir)
     # Ensure the directory exists
     os.makedirs(args.output_dir, exist_ok=True)
 
