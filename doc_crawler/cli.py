@@ -58,7 +58,6 @@ def get_default_output_dir(start_urls):
     return os.path.join(home, ".config", "doc_crawler", "_docs", domain)
 
 
-def main():
 def show_llms_txt():
     llms_txt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "llms.txt")
     try:
