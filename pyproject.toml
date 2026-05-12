@@ -1,6 +1,6 @@
 [project]
 name = "html_docs_crawler"
-version = "0.1.0"
+version = "0.1.1"
 description = "Universal documentation crawler that converts HTML pages to Markdown with internal link correction"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -18,7 +18,7 @@ Source = "https://github.com/zwidny/doc_crawler"
 BugTracker = "https://github.com/zwidny/doc_crawler/issues"
 
 [tool.setuptools.package-data]
-doc_crawler = ["../scrapy.cfg"]
+doc_crawler = ["../scrapy.cfg", "../llms.txt"]
 
 [build-system]
 requires = ["setuptools>=64.0"]

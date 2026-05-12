@@ -59,10 +59,23 @@ def get_default_output_dir(start_urls):
 
 
 def main():
+def show_llms_txt():
+    llms_txt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "llms.txt")
+    try:
+        with open(llms_txt_path, encoding="utf-8") as f:
+            sys.stdout.write(f.read())
+    except FileNotFoundError:
+        print(f"llms.txt not found at {llms_txt_path}", file=sys.stderr)
+        sys.exit(1)
+    sys.exit(0)
+
+
+def main():
     parser = argparse.ArgumentParser(
         description="Universal documentation crawler: Convert HTML pages to Markdown with internal link correction.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+LLM users: run 'doc_crawler --llm-help' for the full LLM-optimized guide (llms.txt).
 Examples:
   doc_crawler --start-urls https://akshare.akfamily.xyz --allowed-domains akshare.akfamily.xyz
   doc_crawler --start-urls https://opencode.ai/docs/zh-cn/ --allow-paths /docs/zh-cn/
@@ -75,6 +88,12 @@ Examples:
         action="version",
         version=f"%(prog)s {get_version()}",
         help="Show version information and exit",
+    )
+
+    parser.add_argument(
+        "--llm-help",
+        action="store_true",
+        help="Print the full LLM-optimized usage guide from llms.txt and exit",
     )
 
     # Required arguments
@@ -127,6 +146,10 @@ Examples:
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Log level",
     )
+
+    # Handle --llm-help before parsing to avoid required argument error
+    if "--llm-help" in sys.argv:
+        show_llms_txt()
 
     args = parser.parse_args()
 
