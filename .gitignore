@@ -10,3 +10,5 @@ wheels/
 .venv
 _docs
 pydantic_test*   
+.codegraph/
+markdown_output/
