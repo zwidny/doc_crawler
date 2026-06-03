@@ -56,6 +56,9 @@ class UniversalDocSpider(CrawlSpider):
         # 弹出 allow_paths 和 converter_engine 以避免传递给父类
         allow_paths_raw = spider_kwargs.pop("allow_paths", "")
         converter_engine = spider_kwargs.pop("converter_engine", "markitdown")
+        # 弹出 javascript_render
+        javascript_render = spider_kwargs.pop("javascript_render", "false")
+        self.javascript_render = javascript_render.lower() in ("true", "1", "yes")
 
         # ---------- 新增：路径白名单 ----------
         # allow_paths: 逗号分隔的路径前缀，如 "/docs/zh-cn/, /help/"
@@ -213,12 +216,69 @@ class UniversalDocSpider(CrawlSpider):
 
     def start_requests(self):
         if self.single_page:
-            # 单页面模式下，为每个起始URL创建请求，直接调用parse_item
-            for url in self.start_urls:
-                yield scrapy.Request(url, callback=self.parse_item)
+            yield from self._gen_start_requests()
+
+    async def start(self):
+        if self.single_page:
+            for r in self._gen_start_requests():
+                yield r
         else:
-            # 普通模式下，使用父类的默认行为
-            yield from super().start_requests()
+            for url in self.start_urls:
+                yield scrapy.Request(
+                    url,
+                    meta={
+                        'playwright': self.javascript_render,
+                        'playwright_page_goto_kwargs': {
+                            'wait_until': 'networkidle',
+                        },
+                        'playwright_page_methods': [
+                            self._simplify_code_blocks(),
+                        ],
+                    },
+                )
+
+    def _gen_start_requests(self):
+        if not self.single_page:
+            return
+        for url in self.start_urls:
+            yield scrapy.Request(
+                url,
+                callback=self.parse_item,
+                meta={
+                    'playwright': self.javascript_render,
+                    'playwright_page_goto_kwargs': {
+                        'wait_until': 'networkidle',
+                    },
+                    'playwright_page_methods': [
+                        self._simplify_code_blocks(),
+                    ],
+                },
+            )
+
+    @staticmethod
+    def _simplify_code_blocks():
+        """返回一个 PageMethod，将 Prism.js 代码块简化为纯 <pre> 文本"""
+        from scrapy_playwright.page import PageMethod
+
+        async def simplify(page):
+            await page.evaluate("""
+                () => {
+                    document.querySelectorAll('.CustomCodeEditorContent_SE4k').forEach(editor => {
+                        const pre = editor.querySelector('pre');
+                        if (pre) {
+                            let text = '';
+                            const lines = pre.querySelectorAll('.token-line');
+                            lines.forEach(line => {
+                                text += line.textContent + '\\n';
+                            });
+                            // Replace the editor content with a simple pre
+                            editor.innerHTML = '<pre><code>' + text.trim() + '</code></pre>';
+                        }
+                    });
+                }
+            """)
+
+        return PageMethod(simplify)
 
     def parse_item(self, response):
         # 检查 URL 路径是否被允许
@@ -411,11 +471,7 @@ class UniversalDocSpider(CrawlSpider):
             path = path[:-5] + ".md"
         else:
             if not os.path.splitext(path)[1]:
-                path = (
-                    os.path.join(path, "index.md")
-                    if path.endswith("/")
-                    else path + ".md"
-                )
+                path = os.path.join(path, "index.md")
         return path.lstrip("/")
 
     def _is_internal_link(self, url, base_url):
@@ -443,6 +499,9 @@ class UniversalDocSpider(CrawlSpider):
             is_image = match.group(1) == "!"
             text = match.group(2)
             inner = match.group(3).strip()
+
+            # 规范化链接文本中的空白字符（修复 HTML 块级元素导致的换行问题）
+            text = re.sub(r'\s+', ' ', text).strip()
 
             # 清理图片的alt文本：如果看起来像URL（包含路径分隔符或图片扩展名），则清空
             if is_image:

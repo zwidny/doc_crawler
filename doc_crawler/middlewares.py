@@ -37,3 +37,40 @@ class RandomUserAgentMiddleware:
     def process_response(self, request, response, spider):
         """处理响应（此处无需特殊操作）"""
         return response
+
+
+class PlaywrightMetaMiddleware:
+    """当 spider.javascript_render=True 时，自动为所有 Request 设置 playwright=True
+    确保 CrawlSpider Rule 自动生成的请求也经过 JS 渲染"""
+
+    def process_spider_output(self, response, result, spider):
+        import scrapy
+        for item_or_request in result:
+            if isinstance(item_or_request, scrapy.Request):
+                if getattr(spider, 'javascript_render', False):
+                    item_or_request.meta['playwright'] = True
+                    if 'playwright_page_goto_kwargs' not in item_or_request.meta:
+                        item_or_request.meta['playwright_page_goto_kwargs'] = {
+                            'wait_until': 'networkidle',
+                        }
+                    if 'playwright_page_methods' not in item_or_request.meta:
+                        item_or_request.meta['playwright_page_methods'] = [
+                            spider._simplify_code_blocks(),
+                        ]
+            yield item_or_request
+
+    async def process_spider_output_async(self, response, result, spider):
+        import scrapy
+        async for item_or_request in result:
+            if isinstance(item_or_request, scrapy.Request):
+                if getattr(spider, 'javascript_render', False):
+                    item_or_request.meta['playwright'] = True
+                    if 'playwright_page_goto_kwargs' not in item_or_request.meta:
+                        item_or_request.meta['playwright_page_goto_kwargs'] = {
+                            'wait_until': 'networkidle',
+                        }
+                    if 'playwright_page_methods' not in item_or_request.meta:
+                        item_or_request.meta['playwright_page_methods'] = [
+                            spider._simplify_code_blocks(),
+                        ]
+            yield item_or_request

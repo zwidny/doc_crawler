@@ -140,6 +140,13 @@ Examples:
     )
 
     parser.add_argument(
+        "--javascript-render",
+        default="false",
+        choices=["true", "false"],
+        help="JavaScript rendering mode (use Playwright headless browser)",
+    )
+
+    parser.add_argument(
         "--loglevel",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
@@ -205,6 +212,8 @@ Examples:
         f"converter_engine={args.converter_engine}",
         "-a",
         f"single_page={args.single_page}",
+        "-a",
+        f"javascript_render={args.javascript_render}",
         "--loglevel",
         args.loglevel,
     ]

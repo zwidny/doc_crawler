@@ -10,6 +10,7 @@ dependencies = [
     "html2text>=2025.4.15",
     "markitdown[docx,pdf,pptx]>=0.1.5",
     "scrapy>=2.14.1",
+    "scrapy-playwright>=0.0.40",
 ]
 
 [project.urls]
